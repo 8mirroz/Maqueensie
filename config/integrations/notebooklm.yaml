@@ -1,0 +1,22 @@
+integration: notebooklm
+mode: manual_upload
+api_available: false
+bundle_export_script: "scripts/export_nblm_bundles.py"
+bundle_output_dir: "exports/nblm"
+sources_expected:
+  - "01_Architecture_bundle.md"
+  - "02_Interior_bundle.md"
+  - "03_Renovation_bundle.md"
+  - "04_Decor_bundle.md"
+  - "05_Furniture_bundle.md"
+  - "06_RealEstate_bundle.md"
+requirements:
+  cite_sources_toggle: true
+  separate_source_per_domain: true
+sync_back_target:
+  moc_folder: "00_MOC"
+  protocol_file: "10_Guides/nblm_sync_protocol.md"
+status: configured_manual
+notes:
+  - "NotebookLM upload/synthesis is manual in current architecture."
+  - "No official repo-level API token wiring configured."

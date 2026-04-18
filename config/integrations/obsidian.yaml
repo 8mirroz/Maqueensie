@@ -1,0 +1,15 @@
+integration: obsidian
+vault_root: "."
+required_plugins:
+  - dataview
+  - templater-obsidian
+dataview:
+  javascript_queries: true
+primary_moc: "00_MOC/00_Master_MOC.md"
+pricing_dashboards:
+  - "08_Pricing_Tables/01_Price_Matrix.md"
+  - "08_Pricing_Tables/02_Competitor_Comparison_Dashboard.md"
+  - "08_Pricing_Tables/03_Trend_Tracker.md"
+status: configured
+notes:
+  - "Requires Obsidian desktop app with community plugins enabled."
