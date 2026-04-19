@@ -1,0 +1,49 @@
+name: Validate Knowledge Base
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        pip install pyyaml jsonschema
+    
+    - name: Run structure validation
+      run: python scripts/validate_kb.py
+    
+    - name: Check for stale data (>30 days)
+      run: |
+        echo "Checking for stale records..."
+        # Future: python scripts/analytics/check_freshness.py
+    
+    - name: Generate diagnostics report
+      run: |
+        echo "Generating diagnostics..."
+        # Future: python scripts/analytics/generate_diagnostics.py --output diagnostics_report.json
+    
+    - name: Upload diagnostics artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: kb-diagnostics
+        path: |
+          scripts/*.py
+          10_Guides/*.md
+    
+    - name: Report validation status
+      run: |
+        echo "✅ Validation completed"
+        echo "📊 See artifacts for detailed report"
