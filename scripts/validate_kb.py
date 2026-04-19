@@ -11,17 +11,17 @@ from typing import Dict, List, Tuple
 ROOT = Path(__file__).resolve().parents[1]
 
 REQUIRED_DIRS = [
-    "00_MOC",
-    "01_Architecture",
-    "02_Interior",
-    "03_Renovation",
-    "04_Decor",
-    "05_Furniture",
-    "06_RealEstate",
-    "07_Competitors",
-    "08_Pricing_Tables",
-    "09_Templates",
-    "10_Guides",
+    "00_Карты_MOC",
+    "01_Архитектура_Репо",
+    "02_Интерьеры-Жилые",
+    "03_Ремонт_и_Отделка",
+    "04_Декор_и_Стиль",
+    "05_Мебель",
+    "06_Недвижимость_Рынок",
+    "07_Конкуренты_Анализ",
+    "08_Таблицы_Цен_Базы_Данных",
+    "09_Шаблоны_Документов",
+    "10_Гайды_и_Правила",
 ]
 
 REQUIRED_FILES = [
@@ -30,21 +30,21 @@ REQUIRED_FILES = [
     ".obsidian/community-plugins.json",
     "config/integrations/obsidian.yaml",
     "config/integrations/notebooklm.yaml",
-    "10_Guides/tier_rules.md",
-    "10_Guides/tier_rules_exceptions.md",
-    "10_Guides/tier_rules_changelog.md",
-    "10_Guides/tier_rules_evidence.md",
-    "10_Guides/update_protocol.md",
-    "10_Guides/validation_rules.md",
-    "10_Guides/nblm_sync_protocol.md",
-    "10_Guides/integration_status.md",
-    "10_Guides/conflicts.md",
-    "09_Templates/Competitor_Profile.md",
-    "09_Templates/Service_Analysis.md",
-    "09_Templates/Pricing_Tracker.md",
-    "08_Pricing_Tables/01_Price_Matrix.md",
-    "08_Pricing_Tables/02_Competitor_Comparison_Dashboard.md",
-    "08_Pricing_Tables/03_Trend_Tracker.md",
+    "10_Гайды_и_Правила/tier_rules.md",
+    "10_Гайды_и_Правила/tier_rules_exceptions.md",
+    "10_Гайды_и_Правила/tier_rules_changelog.md",
+    "10_Гайды_и_Правила/tier_rules_evidence.md",
+    "10_Гайды_и_Правила/update_protocol.md",
+    "10_Гайды_и_Правила/GID_Правила_валидации.md",
+    "10_Гайды_и_Правила/nblm_sync_protocol.md",
+    "10_Гайды_и_Правила/integration_status.md",
+    "10_Гайды_и_Правила/conflicts.md",
+    "09_Шаблоны_Документов/TPL_Профиль_конкурента.md",
+    "09_Шаблоны_Документов/TPL_Анализ_сервиса.md",
+    "09_Шаблоны_Документов/TPL_Трекер_ценообразования.md",
+    "08_Таблицы_Цен_Базы_Данных/PRC_Матрица_цен_общая.md",
+    "08_Таблицы_Цен_Базы_Данных/PRC_Дашборд_сравнения_конкурентов.md",
+    "08_Таблицы_Цен_Базы_Данных/PRC_Трекер_трендов.md",
     "scripts/check_integrations.py",
 ]
 
@@ -194,13 +194,13 @@ def check_structure(errors: List[str]) -> None:
 
 def check_yaml_notes(errors: List[str], warnings: List[str]) -> None:
     folders = [
-        "01_Architecture",
-        "02_Interior",
-        "03_Renovation",
-        "04_Decor",
-        "05_Furniture",
-        "06_RealEstate",
-        "07_Competitors",
+        "01_Архитектура_Репо",
+        "02_Интерьеры-Жилые",
+        "03_Ремонт_и_Отделка",
+        "04_Декор_и_Стиль",
+        "05_Мебель",
+        "06_Недвижимость_Рынок",
+        "07_Конкуренты_Анализ",
     ]
     today = dt.date.today()
 
@@ -268,7 +268,7 @@ def check_yaml_notes(errors: List[str], warnings: List[str]) -> None:
 
 
 def check_tier_rules(errors: List[str]) -> None:
-    path = ROOT / "10_Guides/tier_rules.md"
+    path = ROOT / "10_Гайды_и_Правила/tier_rules.md"
     rows = parse_markdown_table(path, "TR-")
     if not rows:
         fail("tier_rules.md has no TR-* rows", errors)
@@ -357,11 +357,11 @@ def check_wikilinks(errors: List[str]) -> None:
 
 def check_dataview_blocks(errors: List[str]) -> None:
     files = [
-        ROOT / "08_Pricing_Tables/01_Price_Matrix.md",
-        ROOT / "08_Pricing_Tables/02_Competitor_Comparison_Dashboard.md",
-        ROOT / "08_Pricing_Tables/03_Trend_Tracker.md",
+        ROOT / "08_Таблицы_Цен_Базы_Данных/PRC_Матрица_цен_общая.md",
+        ROOT / "08_Таблицы_Цен_Базы_Данных/PRC_Дашборд_сравнения_конкурентов.md",
+        ROOT / "08_Таблицы_Цен_Базы_Данных/PRC_Трекер_трендов.md",
     ]
-    optional = ROOT / "08_Pricing_Tables/04_Repair_Price_Matrix.md"
+    optional = ROOT / "08_Таблицы_Цен_Базы_Данных/04_Repair_Price_Matrix.md"
     if optional.exists():
         files.append(optional)
     for f in files:

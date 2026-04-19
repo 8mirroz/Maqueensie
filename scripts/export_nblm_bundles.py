@@ -14,12 +14,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 EXPORT_DIR = ROOT / "exports" / "nblm"
 DOMAINS = [
-    "01_Architecture",
-    "02_Interior",
-    "03_Renovation",
-    "04_Decor",
-    "05_Furniture",
-    "06_RealEstate",
+    "01_Архитектура_Репо",
+    "02_Интерьеры-Жилые",
+    "03_Ремонт_и_Отделка",
+    "04_Декор_и_Стиль",
+    "05_Мебель",
+    "06_Недвижимость_Рынок",
 ]
 
 FRONTMATTER_RE = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)

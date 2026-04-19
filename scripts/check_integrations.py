@@ -59,9 +59,9 @@ def check_obsidian() -> int:
         ok("templater plugin configured")
 
     dashboards = [
-        ROOT / "08_Pricing_Tables/01_Price_Matrix.md",
-        ROOT / "08_Pricing_Tables/02_Competitor_Comparison_Dashboard.md",
-        ROOT / "08_Pricing_Tables/03_Trend_Tracker.md",
+        ROOT / "08_Таблицы_Цен_Базы_Данных/PRC_Матрица_цен_общая.md",
+        ROOT / "08_Таблицы_Цен_Базы_Данных/PRC_Дашборд_сравнения_конкурентов.md",
+        ROOT / "08_Таблицы_Цен_Базы_Данных/PRC_Трекер_трендов.md",
     ]
     for d in dashboards:
         if d.exists():
@@ -75,7 +75,7 @@ def check_obsidian() -> int:
 
 def check_notebooklm() -> int:
     failures = 0
-    protocol = ROOT / "10_Guides/nblm_sync_protocol.md"
+    protocol = ROOT / "10_Гайды_и_Правила/nblm_sync_protocol.md"
     export_script = ROOT / "scripts/export_nblm_bundles.py"
     automate_script = ROOT / "scripts/automate_notebooklm.py"
     auth_script = ROOT / "scripts/setup_notebooklm_auth.py"

@@ -18,7 +18,7 @@ from typing import Dict, List
 
 ROOT = Path(__file__).resolve().parents[1]
 XLSX_PATH = ROOT / "obsidian_tier_rules_spec.xlsx"
-OUT_DIR = ROOT / "10_Guides"
+OUT_DIR = ROOT / "10_Гайды_и_Правила"
 DEBUG = False
 
 def log(msg: str):
