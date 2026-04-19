@@ -1,6 +1,7 @@
 integration: notebooklm
 mode: manual_upload
-api_available: false
+api_available: true
+auth_state_path: ".auth/notebooklm_state.json"
 bundle_export_script: "scripts/export_nblm_bundles.py"
 bundle_output_dir: "exports/nblm"
 sources_expected:

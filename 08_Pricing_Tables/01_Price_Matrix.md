@@ -34,9 +34,10 @@ if (lines.length < 3) {
     if (row.status !== "active") continue;
 
     const tiers = [
-      ["Budget_Ready", Number(row.budget_min_rub), Number(row.budget_max_rub)],
+      ["Economy", Number(row.economy_min_rub), Number(row.economy_max_rub)],
+      ["Comfort", Number(row.comfort_min_rub), Number(row.comfort_max_rub)],
       ["Business", Number(row.business_min_rub), Number(row.business_max_rub)],
-      ["Premium_Ultra", Number(row.premium_min_rub), Number(row.premium_max_rub || row.premium_min_rub)],
+      ["Premium", Number(row.premium_min_rub), Number(row.premium_max_rub || row.premium_min_rub)],
     ];
 
     for (const [tier, minV, maxV] of tiers) {

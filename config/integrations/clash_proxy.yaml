@@ -1,0 +1,91 @@
+mixed-port: 7890
+allow-lan: false
+mode: rule
+log-level: info
+
+dns:
+  enable: true
+  ipv6: false
+  enhanced-mode: redir-host
+
+  # Чтобы DNS учитывал правила (DIRECT/Proxy)
+  respect-rules: true
+
+  # Основные DNS (лучше DoH для стабильности с Google/OAuth)
+  nameserver:
+    - https://cloudflare-dns.com/dns-query
+    - https://dns.google/dns-query
+
+  # Резервные DNS
+  fallback:
+    - https://cloudflare-dns.com/dns-query
+    - https://dns.google/dns-query
+
+  # ОБЯЗАТЕЛЬНО при respect-rules: true
+  # Эти DNS используются для резолва доменов твоих ПРОКСИ-серверов,
+  # чтобы не было "cannot be empty" и странных зависаний.
+  proxy-server-nameserver:
+    - https://cloudflare-dns.com/dns-query
+    - https://dns.google/dns-query
+
+sniffer:
+  enable: true
+  sniffing:
+    - tls
+    - http
+  force-domain:
+    - +.google.com
+    - +.googleapis.com
+    - +.gstatic.com
+
+proxies:
+  - name: US-SOCKS
+    type: socks5
+    server: 92.113.219.120
+    port: 56149
+    username: Dh3lUxDFdK4T4Xo
+    password: ST80I3aHBQQQM6i
+    udp: true
+
+  - name: US-HTTP
+    type: http
+    server: 74.114.54.91
+    port: 46106
+    username: ruzJufRXc19VBgo
+    password: kdSY7MmFtlK1Yta
+
+proxy-groups:
+  - name: Proxy
+    type: fallback
+    url: https://connectivitycheck.gstatic.com/generate_204
+    interval: 60
+    proxies:
+      - US-SOCKS
+      - US-HTTP
+
+rules:
+  # ---- CRITICAL: localhost & LAN first ----
+  - IP-CIDR,127.0.0.0/8,DIRECT
+  - IP-CIDR,10.0.0.0/8,DIRECT
+  - IP-CIDR,172.16.0.0/12,DIRECT
+  - IP-CIDR,192.168.0.0/16,DIRECT
+  - IP-CIDR,169.254.0.0/16,DIRECT
+  - DOMAIN,localhost,DIRECT
+  - DOMAIN-SUFFIX,local,DIRECT
+
+  # ---- Apple services (иногда лучше DIRECT на macOS) ----
+  - DOMAIN-SUFFIX,apple.com,DIRECT
+  - DOMAIN-SUFFIX,icloud.com,DIRECT
+  - DOMAIN-SUFFIX,me.com,DIRECT
+
+  # ---- Google OAuth / Antigravity ----
+  - DOMAIN,accounts.google.com,Proxy
+  - DOMAIN,oauth2.googleapis.com,Proxy
+  - DOMAIN-SUFFIX,googleapis.com,Proxy
+  - DOMAIN-SUFFIX,gstatic.com,Proxy
+  - DOMAIN-SUFFIX,googleusercontent.com,Proxy
+  - DOMAIN-SUFFIX,google.com,Proxy
+  - DOMAIN-KEYWORD,google,Proxy
+
+  # ---- Everything else ----
+  - MATCH,Proxy

@@ -1,46 +1,67 @@
 #!/usr/bin/env python3
-"""Setup authentication for NotebookLM using notebooklm-py.
-
-This script helps you authenticate and save the authentication state.
-"""
+"""Strengthened authentication setup for NotebookLM."""
 
 from __future__ import annotations
 
-from notebooklm import AuthTokens
-import json
-import os
+import argparse
+import sys
+import asyncio
+from pathlib import Path
 
-# Create .auth directory if it doesn't exist
-auth_dir = ".auth"
-if not os.path.exists(auth_dir):
-    os.makedirs(auth_dir)
+# Add scripts directory to path to import lib
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from lib.nblm_utils import NotebookLMAuthManager
 
-auth_path = os.path.join(auth_dir, "notebooklm_state.json")
+async def test_and_report(manager: NotebookLMAuthManager):
+    print("\n[*] Testing connection to NotebookLM...")
+    if await manager.validate_connection_async():
+        print("[SUCCESS] NotebookLM connection is active.")
+        return True
+    else:
+        print("[FAILED] Authentication is expired or missing.")
+        return False
 
-print("=== NotebookLM Authentication Setup ===")
-print("This script will help you authenticate with NotebookLM.")
-print("You'll need to:")
-print("1. Open NotebookLM in your browser and login")
-print("2. Run the following command in another terminal:")
-print('   python3 -c "from notebooklm import AuthTokens; print(AuthTokens.from_browser())"')
-print("3. Copy the output and paste it here")
-print("\nPress Enter to continue...")
-input()
+def main():
+    parser = argparse.ArgumentParser(description="Secure Setup for NotebookLM Authentication")
+    parser.add_argument("--test", action="store_true", help="Test existing authentication")
+    args = parser.parse_args()
 
-try:
-    # Get authentication tokens from browser
-    print("\nGetting authentication tokens...")
-    auth_tokens = AuthTokens.from_browser()
+    manager = NotebookLMAuthManager()
+
+    if args.test:
+        if asyncio.run(test_and_report(manager)):
+            sys.exit(0)
+        else:
+            if not input("Proceed with new login? [y/N]: ").lower().startswith('y'):
+                sys.exit(1)
+
+    print("\n" + "="*45)
+    print("   NotebookLM AUTHENTICATION SETUP (V2)   ")
+    print("="*45)
     
-    # Save to file
-    with open(auth_path, 'w') as f:
-        json.dump(auth_tokens.to_dict(), f, indent=2)
-    
-    print(f"\nAuthentication saved to: {auth_path}")
-    print("You can now use the automate_notebooklm.py script.")
-    
-except Exception as e:
-    print(f"Error during authentication: {e}")
-    print("Please follow the manual steps above.")
+    # Check if we already have tokens
+    if manager.standard_storage.exists():
+        print(f"[!] Found existing session at {manager.standard_storage}")
+        if not input("    Refresh session? [y/N]: ").lower().startswith('y'):
+            print("Aborted.")
+            sys.exit(0)
 
-print("\n=== Setup Complete ===")
+    # Use the official login command
+    if manager.run_login_cli():
+        print("\n[SUCCESS] Login completed.")
+        
+        print("\n[*] Verifying connection...")
+        if manager.validate_connection():
+            print("[SUCCESS] Connection verified! You are ready to sync.")
+        else:
+            print("[WARNING] Login finished, but verification FAILED.")
+            print("          Check if NotebookLM is accessible (VPN might be needed).")
+    else:
+        print("\n[ERROR] Login process failed.")
+
+    print("\n" + "="*45)
+    print("   Setup Complete")
+    print("="*45)
+
+if __name__ == "__main__":
+    main()

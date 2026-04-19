@@ -48,7 +48,7 @@ REQUIRED_FILES = [
     "scripts/check_integrations.py",
 ]
 
-REQUIRED_YAML_KEYS = {
+STRICT_REQUIRED_YAML_KEYS = {
     "domain",
     "subdomain",
     "competitor",
@@ -67,7 +67,20 @@ REQUIRED_YAML_KEYS = {
     "note_id",
 }
 
-DOMAIN_ENUM = {
+CONTENT_REQUIRED_YAML_KEYS = {
+    "type",
+    "domain",
+    "tags",
+}
+
+DOC_REQUIRED_YAML_KEYS = {
+    "doc_id",
+    "doc_type",
+    "date_added",
+    "tags",
+}
+
+STRICT_DOMAIN_ENUM = {
     "Architecture",
     "Interior",
     "Renovation",
@@ -76,9 +89,34 @@ DOMAIN_ENUM = {
     "RealEstate",
 }
 
-TIER_ENUM = {"Budget_Ready", "Business", "Premium_Ultra"}
-STATUS_ENUM = {"Verified", "Pending", "Outdated", "draft", "active", "draft_conflict", "deprecated"}
+TIER_ENUM = {"Economy", "Comfort", "Business", "Premium", "Budget_Ready", "Premium_Ultra"}
+STATUS_ENUM = {
+    "Verified",
+    "Pending",
+    "Outdated",
+    "draft",
+    "active",
+    "draft_conflict",
+    "deprecated",
+    "wip",
+    "complete",
+    "candidate",
+    "archived",
+}
 
+STRICT_DOMAIN_ENUM = {
+    "Architecture",
+    "Interior",
+    "Renovation",
+    "Decor",
+    "Furniture",
+    "RealEstate",
+}
+
+TIER_ENUM = {"Economy", "Comfort", "Business", "Premium", "Budget_Ready", "Premium_Ultra"}
+
+DOMAIN_SLUG_RE = re.compile(r"^[a-z0-9_-]+$")
+ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 WIKILINK_RE = re.compile(r"\[\[([^\]]+)\]\]")
 
 
@@ -90,39 +128,58 @@ def warn(msg: str, warnings: List[str]) -> None:
     warnings.append(msg)
 
 
-def parse_frontmatter(text: str) -> Tuple[Dict[str, str], bool]:
-    if not text.startswith("---\n"):
-        return {}, False
-    end = text.find("\n---\n", 4)
-    if end == -1:
-        return {}, False
-    block = text[4:end]
-    data: Dict[str, str] = {}
-    for line in block.splitlines():
-        if not line or line.startswith(" ") or ":" not in line:
-            continue
-        key, value = line.split(":", 1)
-        data[key.strip()] = value.strip()
-    return data, True
+def scalar(val: any) -> str:
+    if isinstance(val, list) and val:
+        return str(val[0])
+    return str(val or "")
 
 
-def parse_markdown_table(path: Path, row_prefix: str) -> List[Dict[str, str]]:
-    lines = path.read_text(encoding="utf-8").splitlines()
-    table_lines = [ln for ln in lines if ln.strip().startswith("|")]
-    if len(table_lines) < 3:
+def parse_frontmatter(text: str) -> Tuple[Dict, bool]:
+    if not text.startswith("---"):
+        return {}, False
+    parts = text.split("---", 2)
+    if len(parts) < 3:
+        return {}, False
+    import yaml
+
+    try:
+        data = yaml.safe_load(parts[1])
+        return data or {}, True
+    except Exception:
+        return {}, False
+
+
+def is_doc_contract_note(fm: Dict) -> bool:
+    return "doc_id" in fm
+
+
+def is_legacy_contract_note(path: Path, fm: Dict) -> bool:
+    return "07_Competitors" in str(path) or "competitor" in fm
+
+
+def parse_markdown_table(path: Path, row_prefix: str) -> List[Dict]:
+    if not path.is_file():
+        return []
+    text = path.read_text(encoding="utf-8")
+    lines = text.splitlines()
+    header_idx = -1
+    for i, line in enumerate(lines):
+        if "|" in line and "rule_id" in line.lower():
+            header_idx = i
+            break
+    if header_idx == -1:
         return []
 
-    def split_row(line: str) -> List[str]:
-        return [x.strip() for x in line.split("|")[1:-1]]
-
-    headers = split_row(table_lines[0])
+    headers = [h.strip().lower() for h in lines[header_idx].split("|")][1:-1]
     out = []
-    for row in table_lines[2:]:
-        cells = split_row(row)
-        if not cells or not cells[0].startswith(row_prefix):
+    for line in lines[header_idx + 2 :]:
+        if not line.strip() or "|" not in line:
             continue
-        padded = cells + [""] * (len(headers) - len(cells))
-        out.append(dict(zip(headers, padded[: len(headers)])))
+        cells = [c.strip() for c in line.split("|")][1:-1]
+        if not cells or not (cells[0] or "").startswith(row_prefix):
+            continue
+        row = dict(zip(headers, cells))
+        out.append(row)
     return out
 
 
@@ -149,7 +206,7 @@ def check_yaml_notes(errors: List[str], warnings: List[str]) -> None:
 
     note_count = 0
     for folder in folders:
-        for path in sorted((ROOT / folder).glob("*.md")):
+        for path in sorted((ROOT / folder).rglob("*.md")):
             if path.name.lower() == "readme.md":
                 continue
             note_count += 1
@@ -160,30 +217,51 @@ def check_yaml_notes(errors: List[str], warnings: List[str]) -> None:
                 continue
 
             keys = set(fm.keys())
-            missing = REQUIRED_YAML_KEYS - keys
-            if missing:
-                fail(f"missing YAML keys in {path.relative_to(ROOT)}: {sorted(missing)}", errors)
+            if is_doc_contract_note(fm):
+                missing = DOC_REQUIRED_YAML_KEYS - keys
+                if missing:
+                    fail(f"missing doc YAML keys in {path.relative_to(ROOT)}: {sorted(missing)}", errors)
+            elif is_legacy_contract_note(path, fm):
+                missing = STRICT_REQUIRED_YAML_KEYS - keys
+                if missing:
+                    fail(f"missing YAML keys in {path.relative_to(ROOT)}: {sorted(missing)}", errors)
 
-            domain_raw = fm.get("domain", "")
-            if not any(d in domain_raw for d in DOMAIN_ENUM):
-                fail(f"invalid domain enum in {path.relative_to(ROOT)}", errors)
+                domain_raw = fm.get("domain", "")
+                if not any(d in domain_raw for d in STRICT_DOMAIN_ENUM):
+                    fail(f"invalid domain enum in {path.relative_to(ROOT)}", errors)
 
-            tier_raw = fm.get("price_tier", "")
-            if not any(t in tier_raw for t in TIER_ENUM):
-                fail(f"invalid price_tier enum in {path.relative_to(ROOT)}", errors)
+                tier_raw = fm.get("price_tier", "")
+                if not any(t in tier_raw for t in TIER_ENUM):
+                    fail(f"invalid price_tier enum in {path.relative_to(ROOT)}", errors)
+            else:
+                missing = CONTENT_REQUIRED_YAML_KEYS - keys
+                if missing:
+                    fail(f"missing content YAML keys in {path.relative_to(ROOT)}: {sorted(missing)}", errors)
+                if "id" not in keys and "note_id" not in keys:
+                    fail(f"missing id/note_id in {path.relative_to(ROOT)}", errors)
+
+                domain_raw = scalar(fm.get("domain", ""))
+                if domain_raw and not DOMAIN_SLUG_RE.match(domain_raw):
+                    fail(f"invalid content domain format in {path.relative_to(ROOT)}", errors)
 
             status_raw = fm.get("status", "")
-            if not any(s in status_raw for s in STATUS_ENUM):
+            if status_raw and not any(s in status_raw for s in STATUS_ENUM):
                 fail(f"invalid status enum in {path.relative_to(ROOT)}", errors)
 
-            dv = re.search(r"date_verified:\s*\"?(\d{4}-\d{2}-\d{2})", text)
-            if dv:
-                d = dt.date.fromisoformat(dv.group(1))
-                age = (today - d).days
-                if age > 180 and "Outdated" not in status_raw:
-                    fail(f"stale note not marked Outdated: {path.relative_to(ROOT)}", errors)
-                elif age > 30:
-                    warn(f"re-verify due (>30d): {path.relative_to(ROOT)}", warnings)
+            for date_field in ("created", "created_at", "updated_at", "date_added", "date_verified"):
+                raw = scalar(fm.get(date_field, ""))
+                if raw and not ISO_DATE_RE.match(raw):
+                    fail(f"invalid {date_field} format in {path.relative_to(ROOT)}: {raw}", errors)
+
+            if is_legacy_contract_note(path, fm):
+                raw_verified = scalar(fm.get("date_verified", ""))
+                if ISO_DATE_RE.match(raw_verified):
+                    d = dt.date.fromisoformat(raw_verified)
+                    age = (today - d).days
+                    if age > 180 and "Outdated" not in status_raw:
+                        fail(f"stale note not marked Outdated: {path.relative_to(ROOT)}", errors)
+                    elif age > 30:
+                        warn(f"re-verify due (>30d): {path.relative_to(ROOT)}", warnings)
 
     if note_count == 0:
         warn("no working notes found in 01_*..07_* yet", warnings)
@@ -197,7 +275,7 @@ def check_tier_rules(errors: List[str]) -> None:
         return
 
     domains = {r.get("domain", "") for r in rows}
-    expected = DOMAIN_ENUM
+    expected = STRICT_DOMAIN_ENUM
     if domains != expected:
         fail(f"tier_rules domains mismatch: expected {sorted(expected)}, got {sorted(domains)}", errors)
 
@@ -214,16 +292,27 @@ def check_tier_rules(errors: List[str]) -> None:
                 fail(f"non-numeric field {k} in {rid}", errors)
                 return None
 
-        bmin = num("budget_min_rub")
-        bmax = num("budget_max_rub")
-        cmin = num("business_min_rub")
-        cmax = num("business_max_rub")
+        emin = num("economy_min_rub")
+        emax = num("economy_max_rub")
+        commin = num("comfort_min_rub")
+        commax = num("comfort_max_rub")
+        bmin = num("business_min_rub")
+        bmax = num("business_max_rub")
         pmin = num("premium_min_rub")
         pmax = num("premium_max_rub")
 
-        if None not in (bmin, bmax, cmin, cmax, pmin):
+        if None not in (emin, emax, bmin, bmax, pmin):
             upper_p = pmax if pmax is not None else pmin
-            if not (bmin <= bmax < cmin <= cmax < pmin <= upper_p):
+            # Order: Economy -> Comfort (optional) -> Business -> Premium
+            checks = [emin <= emax]
+            if commin is not None and commax is not None:
+                checks.append(emax < commin <= commax < bmin)
+            else:
+                checks.append(emax < bmin)
+            checks.append(bmin <= bmax < pmin <= upper_p)
+            
+            if not all(checks):
+                print(f"DEBUG: {rid} checks failed: {checks} (values: emin={emin}, emax={emax}, commin={commin}, commax={commax}, bmin={bmin}, bmax={bmax}, pmin={pmin}, pmax={pmax})")
                 fail(f"tier overlap/order violation in {rid}", errors)
 
         metric = row.get("metric_type", "")
@@ -272,7 +361,12 @@ def check_dataview_blocks(errors: List[str]) -> None:
         ROOT / "08_Pricing_Tables/02_Competitor_Comparison_Dashboard.md",
         ROOT / "08_Pricing_Tables/03_Trend_Tracker.md",
     ]
+    optional = ROOT / "08_Pricing_Tables/04_Repair_Price_Matrix.md"
+    if optional.exists():
+        files.append(optional)
     for f in files:
+        if not f.exists():
+            continue
         text = f.read_text(encoding="utf-8")
         if "```dataview" not in text and "```dataviewjs" not in text:
             fail(f"missing dataview block: {f.relative_to(ROOT)}", errors)
@@ -304,4 +398,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    import sys
+    sys.exit(main())

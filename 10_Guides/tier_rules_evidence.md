@@ -3,7 +3,7 @@ doc_id: tier_rules_evidence
 version: 1.0.0
 status: active
 source_file: obsidian_tier_rules_spec.xlsx
-last_materialized: 2026-04-17
+last_materialized: 2026-04-19
 ---
 
 # tier_rules_evidence

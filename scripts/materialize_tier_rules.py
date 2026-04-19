@@ -5,19 +5,25 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
-import xml.etree.ElementTree as ET
-import zipfile
+import sys
+
+try:
+    import openpyxl
+except ImportError:
+    print("ERROR: 'openpyxl' module not found. Please install it using: pip install openpyxl")
+    sys.exit(1)
+
 from pathlib import Path
 from typing import Dict, List
 
 ROOT = Path(__file__).resolve().parents[1]
 XLSX_PATH = ROOT / "obsidian_tier_rules_spec.xlsx"
 OUT_DIR = ROOT / "10_Guides"
+DEBUG = False
 
-NS = {
-    "a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
-    "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
-}
+def log(msg: str):
+    if DEBUG:
+        print(f"[DEBUG] {msg}")
 
 SHEET_CONFIG = {
     "tier_rules_master": {
@@ -84,56 +90,15 @@ def _normalize_for_check(text: str) -> str:
     return "\n".join(out).strip() + "\n"
 
 
-def _load_shared_strings(zf: zipfile.ZipFile) -> List[str]:
-    if "xl/sharedStrings.xml" not in zf.namelist():
-        return []
-    root = ET.fromstring(zf.read("xl/sharedStrings.xml"))
-    out: List[str] = []
-    for si in root.findall("a:si", NS):
-        text = "".join(t.text or "" for t in si.findall(".//a:t", NS))
-        out.append(text)
-    return out
-
-
 def _sheet_rows(xlsx_path: Path, sheet_name: str) -> List[List[str]]:
-    with zipfile.ZipFile(xlsx_path) as zf:
-        shared = _load_shared_strings(zf)
-        wb = ET.fromstring(zf.read("xl/workbook.xml"))
-        rels = ET.fromstring(zf.read("xl/_rels/workbook.xml.rels"))
-
-        rid_to_target: Dict[str, str] = {}
-        for rel in rels:
-            rid_to_target[rel.attrib["Id"]] = rel.attrib["Target"]
-
-        target = None
-        for sheet in wb.find("a:sheets", NS):
-            if sheet.attrib["name"] != sheet_name:
-                continue
-            rid = sheet.attrib["{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"]
-            t = rid_to_target[rid].lstrip("/")
-            target = t if t.startswith("xl/") else f"xl/{t}"
-            break
-
-        if target is None:
-            raise ValueError(f"Sheet not found: {sheet_name}")
-
-        sheet_xml = ET.fromstring(zf.read(target))
-        rows = []
-        for row in sheet_xml.findall(".//a:sheetData/a:row", NS):
-            values = []
-            for cell in row.findall("a:c", NS):
-                ctype = cell.attrib.get("t")
-                v = cell.find("a:v", NS)
-                if v is None:
-                    values.append("")
-                    continue
-                raw = v.text or ""
-                if ctype == "s" and raw.isdigit():
-                    values.append(shared[int(raw)])
-                else:
-                    values.append(raw)
-            rows.append(values)
-        return rows
+    wb = openpyxl.load_workbook(xlsx_path, data_only=True)
+    if sheet_name not in wb.sheetnames:
+        raise ValueError(f"Sheet not found: {sheet_name}")
+    sheet = wb[sheet_name]
+    rows = []
+    for row in sheet.iter_rows(values_only=True):
+        rows.append([str(cell if cell is not None else "") for cell in row])
+    return rows
 
 
 def _normalize_date(value: str) -> str:
@@ -235,7 +200,7 @@ def _render_doc(sheet: str) -> str:
             [
                 "## Validation Logic",
                 "",
-                "- `budget_max_rub < business_min_rub <= business_max_rub < premium_min_rub`",
+                "- `economy_max_rub < comfort_min_rub <= comfort_max_rub < business_min_rub <= business_max_rub < premium_min_rub`",
                 "- Tier ranges must not overlap",
                 "- `status=active` only if `source_count_verified >= 2`",
                 "- `metric_type=package_rub` requires empty `area_band_m2_min/max`",
@@ -265,28 +230,48 @@ def materialize(check: bool) -> int:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     mismatches = []
 
-    for sheet, cfg in SHEET_CONFIG.items():
-        rendered = _render_doc(sheet)
-        path = OUT_DIR / cfg["output"]
-        if check:
-            current = path.read_text(encoding="utf-8") if path.exists() else ""
-            if _normalize_for_check(current) != _normalize_for_check(rendered):
-                mismatches.append(str(path))
-            continue
-        path.write_text(rendered, encoding="utf-8")
-
-    if check and mismatches:
-        print("Materialization drift detected:")
-        for item in mismatches:
-            print(f"- {item}")
+    if not XLSX_PATH.exists():
+        print(f"ERROR: Specification file not found at {XLSX_PATH}")
         return 1
+
+    for sheet, cfg in SHEET_CONFIG.items():
+        try:
+            rendered = _render_doc(sheet)
+            path = OUT_DIR / cfg["output"]
+            if check:
+                current = path.read_text(encoding="utf-8") if path.exists() else ""
+                if _normalize_for_check(current) != _normalize_for_check(rendered):
+                    mismatches.append(str(path))
+                continue
+            
+            path.write_text(rendered, encoding="utf-8")
+            print(f"SUCCESS: Materialized {cfg['output']}")
+        except Exception as e:
+            print(f"ERROR: Failed to process sheet '{sheet}': {e}")
+            if DEBUG:
+                import traceback
+                traceback.print_exc()
+            return 1
+
+    if check:
+        if mismatches:
+            print("Materialization drift detected:")
+            for item in mismatches:
+                print(f"- {item}")
+            return 1
+        else:
+            print("SUCCESS: No materialization drift detected.")
+    
     return 0
 
 
 def main() -> int:
+    global DEBUG
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="Validate generated files without writing")
+    parser.add_argument("--debug", action="store_true", help="Enable verbose debug logging")
     args = parser.parse_args()
+    DEBUG = args.debug
     return materialize(check=args.check)
 
 

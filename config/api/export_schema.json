@@ -1,0 +1,139 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Competitor Data Export Schema",
+  "description": "JSON schema для экспорта данных о конкурентах во внешние системы",
+  "version": "1.0.0",
+  "type": "object",
+  "required": ["metadata", "records"],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "required": ["export_timestamp", "record_count", "version"],
+      "properties": {
+        "export_timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Время экспорта в ISO 8601"
+        },
+        "record_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Количество записей в экспорте"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Версия схемы экспорта"
+        },
+        "source_snapshot_hash": {
+          "type": "string",
+          "description": "SHA256 хэш исходного снимка данных"
+        },
+        "domains_included": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["Architecture", "Interior", "Renovation", "Decor", "Furniture", "RealEstate"]
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "competitor", "domain", "service_type", "price_tier", "price_range_rub", "status"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Уникальный идентификатор записи (note_id из frontmatter)"
+          },
+          "competitor": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Название компании-конкурента"
+          },
+          "domain": {
+            "type": "string",
+            "enum": ["Architecture", "Interior", "Renovation", "Decor", "Furniture", "RealEstate"]
+          },
+          "subdomain": {
+            "type": "string",
+            "description": "Поддомен (например, private_houses, apartments)"
+          },
+          "service_type": {
+            "type": "string",
+            "description": "Тип услуги"
+          },
+          "price_tier": {
+            "type": "string",
+            "enum": ["Budget_Ready", "Business", "Premium_Ultra"]
+          },
+          "price_range_rub": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "minimum": 0
+            },
+            "minItems": 2,
+            "maxItems": 2,
+            "description": "Диапазон цен [min, max] в рублях"
+          },
+          "price_normalized_rub_m2": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Нормализованная цена за м² (если применимо)"
+          },
+          "hook": {
+            "type": "string",
+            "description": "Уникальное предложение (hook) конкурента"
+          },
+          "usps": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Unique Selling Points"
+          },
+          "tech_aesthetic_features": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Технические и эстетические особенности"
+          },
+          "confidence_score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Оценка достоверности (0-1)"
+          },
+          "source_urls": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri"
+            },
+            "minItems": 1,
+            "description": "URL источников данных"
+          },
+          "date_added": {
+            "type": "string",
+            "format": "date",
+            "description": "Дата добавления записи"
+          },
+          "date_verified": {
+            "type": "string",
+            "format": "date",
+            "description": "Дата последней верификации"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["Verified", "Pending", "Outdated"]
+          },
+          "file_path": {
+            "type": "string",
+            "description": "Путь к исходному файлу в vault"
+          }
+        }
+      }
+    }
+  }
+}

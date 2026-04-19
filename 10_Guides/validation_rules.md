@@ -9,7 +9,14 @@ tags: [validation, policy]
 
 # Validation Rules
 
-## Required YAML Contract (all working notes in `01_*`..`07_*`)
+## YAML Contracts (tiered strictness)
+
+Validator applies contract by note shape:
+- `legacy_strict`: old competitor/pricing cards (`competitor`/`service_type`/`price_tier` markers or legacy filename pattern `YYYY-MM-DD_*`)
+- `content_core`: new analytical notes (market maps, demand maps, catalogs, offers, etc.)
+- `doc_core`: system/architecture reports (`doc_id` + `doc_type`)
+
+### Contract A — `legacy_strict` (full normalization)
 
 ```yaml
 domain: ["Architecture", "Interior", "Renovation", "Decor", "Furniture", "RealEstate"]
@@ -31,6 +38,29 @@ date_verified: "YYYY-MM-DD"
 status: ["Verified", "Pending", "Outdated"]
 tags: ["string"]
 note_id: "domain|competitor|service_type|date_verified"
+```
+
+### Contract B — `content_core` (priority for new content)
+
+```yaml
+id: "string"               # or note_id
+type: "market_map|demand_map|catalog|offers_library|..."
+domain: "slug-like value"  # e.g. furniture, residential-interiors, interior-commercial
+tags: ["string"]
+created_at: "YYYY-MM-DD"   # optional but recommended
+updated_at: "YYYY-MM-DD"   # optional but recommended
+status: "active|draft|deprecated|..."  # optional
+```
+
+### Contract C — `doc_core` (system docs)
+
+```yaml
+doc_id: "string"
+doc_type: "string"
+date_added: "YYYY-MM-DD"
+tags: ["string"]
+date_verified: "YYYY-MM-DD"   # optional but recommended
+status: "active|complete|archived|..." # optional
 ```
 
 ## Naming
